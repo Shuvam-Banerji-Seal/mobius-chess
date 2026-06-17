@@ -1,0 +1,2374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Abyssal Fold — Möbius Chess</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cinzel+Decorative:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void:       #04020f;
+    --deep:       #0d0424;
+    --fold:       #1a0a4e;
+    --arc:        #2d0f8a;
+    --pulse:      #7b2fff;
+    --rift:       #00f5ff;
+    --gold:       #c8a84b;
+    --ember:      #ff3a1a;
+    --text-light: #e8deff;
+    --text-muted: #6b5f9e;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: var(--void);
+    color: var(--text-light);
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: radial-gradient(ellipse at 50% 50%, #150530 0%, #04020f 100%);
+  }
+  #app {
+    position: fixed; inset: 0;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "header header"
+      "stage  panel";
+  }
+  /* HEADER */
+  #header {
+    grid-area: header;
+    padding: 14px 22px 10px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    z-index: 5;
+    background: linear-gradient(180deg, rgba(4,2,15,0.85) 0%, rgba(4,2,15,0) 100%);
+    pointer-events: none;
+  }
+  #header > * { pointer-events: auto; }
+  .brand {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .brand .title {
+    font-family: 'Cinzel Decorative', serif;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.32em;
+    font-size: 22px;
+    text-shadow: 0 0 12px rgba(200, 168, 75, 0.45);
+  }
+  .brand .sub {
+    font-family: 'Cinzel', serif;
+    color: var(--pulse);
+    letter-spacing: 0.45em;
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+  .header-actions {
+    display: flex; gap: 8px;
+  }
+  .btn {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    background: rgba(13, 4, 36, 0.7);
+    border: 1px solid rgba(123, 47, 255, 0.4);
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    backdrop-filter: blur(8px);
+  }
+  .btn:hover {
+    background: rgba(123, 47, 255, 0.18);
+    border-color: var(--pulse);
+    box-shadow: 0 0 14px rgba(123, 47, 255, 0.4);
+  }
+  .btn.gold:hover { border-color: var(--gold); box-shadow: 0 0 14px rgba(200, 168, 75, 0.35); }
+  .btn .ic { margin-right: 6px; }
+
+  /* STATUS BAR */
+  #statusbar {
+    grid-area: header;
+    align-self: flex-end;
+    margin: 0 22px 6px 22px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(4, 2, 15, 0.78);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(123, 47, 255, 0.3);
+    border-radius: 8px;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    pointer-events: auto;
+    z-index: 4;
+    width: max-content;
+    max-width: calc(100% - 44px);
+  }
+  #statusbar.shift-up { transform: translateY(-58px); transition: transform 0.25s ease; }
+  .turn-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--rift);
+    box-shadow: 0 0 10px var(--rift);
+  }
+  .turn-dot.black { background: var(--ember); box-shadow: 0 0 10px var(--ember); }
+  .turn-label {
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .sep { color: var(--text-muted); }
+  .move-no { color: var(--text-muted); }
+  .check-pill {
+    background: rgba(255, 58, 26, 0.18);
+    color: var(--ember);
+    border: 1px solid rgba(255, 58, 26, 0.5);
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    font-size: 11px;
+    animation: pulseEmber 1.2s ease-in-out infinite;
+  }
+  .check-pill.hidden { display: none; }
+  @keyframes pulseEmber {
+    0%, 100% { box-shadow: 0 0 6px rgba(255, 58, 26, 0.5); }
+    50% { box-shadow: 0 0 18px rgba(255, 58, 26, 0.9); }
+  }
+
+  /* STAGE */
+  #stage {
+    grid-area: stage;
+    position: relative;
+    overflow: hidden;
+  }
+  #stage canvas { display: block; }
+  .hud-corner {
+    position: absolute;
+    pointer-events: none;
+    color: var(--text-muted);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.2em;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+  .hud-corner.tl { top: 14px; left: 18px; }
+  .hud-corner.br { bottom: 14px; right: 18px; }
+  .hud-corner .accent { color: var(--pulse); }
+
+  /* SIDE PANEL */
+  #panel {
+    grid-area: panel;
+    background: rgba(4, 2, 15, 0.82);
+    backdrop-filter: blur(14px);
+    border-left: 1px solid rgba(123, 47, 255, 0.3);
+    padding: 16px 18px 22px;
+    overflow-y: auto;
+    z-index: 3;
+  }
+  #panel h3 {
+    margin: 0 0 10px;
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    font-size: 12px;
+    color: var(--pulse);
+  }
+  .panel-section { margin-bottom: 22px; }
+  .captured-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 8px 10px;
+    background: rgba(13, 4, 36, 0.6);
+    border: 1px solid rgba(123, 47, 255, 0.18);
+    border-radius: 6px;
+  }
+  .captured-row .label {
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    min-width: 46px;
+  }
+  .cap-piece {
+    width: 22px; height: 22px;
+    display: inline-block;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+  }
+  #move-history {
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1px solid rgba(123, 47, 255, 0.18);
+    background: rgba(13, 4, 36, 0.6);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    line-height: 1.8;
+  }
+  #move-history::-webkit-scrollbar { width: 6px; }
+  #move-history::-webkit-scrollbar-thumb { background: rgba(123, 47, 255, 0.4); border-radius: 3px; }
+  .move-row { display: grid; grid-template-columns: 28px 1fr 1fr; gap: 6px; }
+  .move-row .n { color: var(--text-muted); }
+  .move-row .w, .move-row .b { color: var(--text-light); }
+  .move-row .w.moebius, .move-row .b.moebius { color: var(--rift); }
+  .move-row .latest { background: rgba(123, 47, 255, 0.12); border-radius: 3px; padding: 0 4px; }
+  #moebius-count {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    background: rgba(13, 4, 36, 0.6);
+    border: 1px solid rgba(0, 245, 255, 0.3);
+    border-radius: 6px;
+    color: var(--rift);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.18em;
+    font-size: 12px;
+  }
+  #moebius-count .v { font-size: 18px; color: var(--text-light); }
+  .moebius-flash { animation: riftFlash 0.5s ease-out; }
+  @keyframes riftFlash {
+    0% { background: rgba(0, 245, 255, 0.5); }
+    100% { background: rgba(13, 4, 36, 0.6); }
+  }
+  .panel-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    padding: 10px 12px;
+    background: rgba(13, 4, 36, 0.4);
+    border-left: 2px solid var(--pulse);
+    border-radius: 4px;
+  }
+  .panel-hint b { color: var(--rift); font-weight: 500; }
+
+  /* MODALS */
+  .modal {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(4, 2, 15, 0.78);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .modal.show { opacity: 1; pointer-events: auto; }
+  .modal-card {
+    background: rgba(13, 4, 36, 0.92);
+    border: 1px solid var(--pulse);
+    border-radius: 12px;
+    padding: 28px 32px;
+    max-width: 560px;
+    width: calc(100% - 40px);
+    box-shadow: 0 0 40px rgba(123, 47, 255, 0.5);
+    color: var(--text-light);
+    text-align: center;
+  }
+  .modal-card h2 {
+    margin: 0 0 18px;
+    font-family: 'Cinzel Decorative', serif;
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    font-size: 22px;
+  }
+  .modal-card p, .modal-card li {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-light);
+  }
+  .modal-card .close-btn {
+    margin-top: 18px;
+  }
+  .promo-choices {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .promo-btn {
+    aspect-ratio: 1;
+    background: rgba(4, 2, 15, 0.7);
+    border: 1px solid rgba(123, 47, 255, 0.5);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.18s ease;
+    padding: 8px;
+  }
+  .promo-btn:hover {
+    background: rgba(123, 47, 255, 0.25);
+    border-color: var(--pulse);
+    box-shadow: 0 0 18px rgba(123, 47, 255, 0.6);
+    transform: translateY(-2px);
+  }
+  .promo-btn .cap-piece { width: 64px; height: 64px; }
+
+  .rules-body {
+    text-align: left;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  .rules-body h3 {
+    color: var(--pulse);
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin: 14px 0 6px;
+  }
+  .rules-body p { margin: 0 0 8px; }
+  .rules-body code {
+    background: rgba(0, 245, 255, 0.1);
+    color: var(--rift);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+  }
+  .rules-diagram {
+    margin: 12px 0;
+    padding: 12px;
+    background: rgba(4, 2, 15, 0.6);
+    border: 1px dashed rgba(123, 47, 255, 0.4);
+    border-radius: 6px;
+    text-align: center;
+    font-family: 'Cinzel', serif;
+    color: var(--rift);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+  .game-over-title {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 30px;
+    color: var(--gold);
+    text-shadow: 0 0 18px rgba(200, 168, 75, 0.5);
+    letter-spacing: 0.14em;
+    margin: 0 0 12px;
+  }
+  .game-over-sub {
+    color: var(--text-light);
+    font-size: 14px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin: 0 0 18px;
+  }
+
+  /* LOADING */
+  #loader {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--void);
+    z-index: 200;
+    transition: opacity 0.6s ease;
+  }
+  #loader.hide { opacity: 0; pointer-events: none; }
+  .loader-inner {
+    text-align: center;
+  }
+  .loader-inner .ring {
+    width: 64px; height: 64px;
+    border: 2px solid rgba(123, 47, 255, 0.2);
+    border-top-color: var(--pulse);
+    border-right-color: var(--rift);
+    border-radius: 50%;
+    margin: 0 auto 18px;
+    animation: spin 1.4s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-inner .t {
+    font-family: 'Cinzel Decorative', serif;
+    color: var(--gold);
+    letter-spacing: 0.32em;
+    font-size: 14px;
+  }
+
+  /* Responsive */
+  @media (max-width: 820px) {
+    #app {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 50vh 1fr;
+      grid-template-areas:
+        "header"
+        "stage"
+        "panel";
+    }
+    #panel {
+      border-left: none;
+      border-top: 1px solid rgba(123, 47, 255, 0.3);
+      max-height: 50vh;
+    }
+    .brand .title { font-size: 17px; }
+    .brand .sub { font-size: 9px; }
+    #statusbar { font-size: 11px; padding: 6px 10px; gap: 10px; }
+  }
+  @media (max-width: 480px) {
+    .header-actions .btn { padding: 6px 10px; font-size: 10px; }
+    .promo-choices { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-inner">
+    <div class="ring"></div>
+    <div class="t">FOLDING THE ABYSS</div>
+  </div>
+</div>
+
+<div id="app">
+  <header id="header">
+    <div class="brand">
+      <div class="title">MÖBIUS CHESS</div>
+      <div class="sub">— Abyssal Fold —</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn gold" id="btn-new"><span class="ic">⟳</span>New Game</button>
+      <button class="btn" id="btn-rules"><span class="ic">?</span>Rules</button>
+      <button class="btn" id="btn-flip"><span class="ic">⇅</span>Flip View</button>
+    </div>
+  </header>
+
+  <div id="statusbar">
+    <span class="turn-dot" id="turn-dot"></span>
+    <span class="turn-label" id="turn-label">White's Turn</span>
+    <span class="sep">·</span>
+    <span class="move-no">Move <span id="move-no">1</span></span>
+    <span class="check-pill hidden" id="check-pill">⚠ CHECK</span>
+  </div>
+
+  <div id="stage">
+    <div class="hud-corner tl">Rift Count <span class="accent" id="hud-crossings">0</span></div>
+    <div class="hud-corner br">Drag to orbit · Scroll to zoom</div>
+  </div>
+
+  <aside id="panel">
+    <div class="panel-section">
+      <h3>Captured Pieces</h3>
+      <div class="captured-row">
+        <span class="label">White</span>
+        <div id="captured-white" style="display:flex; gap:2px; flex-wrap:wrap;"></div>
+      </div>
+      <div class="captured-row" style="margin-top:6px;">
+        <span class="label">Black</span>
+        <div id="captured-black" style="display:flex; gap:2px; flex-wrap:wrap;"></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Move History</h3>
+      <div id="move-history">
+        <div class="move-row"><span class="n">—</span><span class="w">—</span><span class="b">—</span></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Rift Crossings</h3>
+      <div id="moebius-count">
+        <span>BEND · TWIST · FOLD</span>
+        <span class="v" id="moebius-count-v">0</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-hint">
+        <b>Twist rule:</b> pieces leaving file <b>h</b> re-enter at file <b>a</b> with their rank reflected (rank <i>r</i> → rank <i>9−r</i>). Pawns reverse their forward direction after crossing.
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- Promotion modal -->
+<div class="modal" id="promo-modal">
+  <div class="modal-card">
+    <h2>CHOOSE PROMOTION</h2>
+    <p style="color:var(--text-muted); font-size:12px; letter-spacing:0.16em; text-transform:uppercase;">Your pawn reaches the far rank</p>
+    <div class="promo-choices" id="promo-choices"></div>
+  </div>
+</div>
+
+<!-- Rules modal -->
+<div class="modal" id="rules-modal">
+  <div class="modal-card" style="max-width:620px;">
+    <h2>THE ABYSSAL FOLD</h2>
+    <div class="rules-body">
+      <p style="color:var(--text-muted); font-size:12px;">A standard game of chess played on a single-sided Möbius strip. The board is an 8×8 grid whose long edges are joined with a half-twist, so the surface has only one side and one edge.</p>
+
+      <h3>1 · The Twist Identification</h3>
+      <p>When a piece moves past <code>h</code> (rightward) or past <code>a</code> (leftward), it re-enters from the opposite file edge with the <b>rank reflected</b>:</p>
+      <div class="rules-diagram">
+        Cross h at rank r → arrive at a, rank (9 − r)<br/>
+        Cross a at rank r → arrive at h, rank (9 − r)
+      </div>
+
+      <h3>2 · Sliding Pieces</h3>
+      <p><b>Rooks</b> slide along files (around the strip) and ranks (across the width). File-direction slides wrap with the rank-flip.</p>
+      <p><b>Bishops and Queens</b> on diagonals: when a diagonal crosses the file boundary, the rank direction is reversed upon re-entry, so the piece traces a non-Euclidean arc across the fold.</p>
+
+      <h3>3 · Knights & Kings</h3>
+      <p>Standard offsets, with Möbius wrapping applied to the file component.</p>
+
+      <h3>4 · Pawns</h3>
+      <p>Move forward toward the back rank in the player's colour. After crossing the Möbius boundary, the pawn <b>reverses its forward direction</b> — it is now on the "other face" of the strip. En-passant, double-step, and promotion behave as standard on whichever face the pawn currently occupies.</p>
+
+      <h3>5 · Check, Checkmate, Stalemate</h3>
+      <p>Detected by projecting all opponent attack squares (including Möbius-wrapped rays) onto the king's position.</p>
+
+      <h3>6 · Move Notation</h3>
+      <p>Standard algebraic notation, with a <code>⟆</code> prefix on any move that crosses the file boundary.</p>
+    </div>
+    <button class="btn close-btn" id="rules-close">Return to the Fold</button>
+  </div>
+</div>
+
+<!-- Game over modal -->
+<div class="modal" id="gameover-modal">
+  <div class="modal-card">
+    <h2 class="game-over-title" id="gameover-title">CHECKMATE</h2>
+    <p class="game-over-sub" id="gameover-sub">— White Wins —</p>
+    <button class="btn close-btn" id="gameover-new">Begin Anew</button>
+  </div>
+</div>
+
+<!-- Three.js + GSAP via importmap -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+
+/* ========================================================================
+ *  MÖBIUS CHESS — ABYSSAL FOLD
+ *  Single-file Three.js implementation with Möbius-aware chess rules.
+ * ====================================================================== */
+
+const R  = 3.0;     // major radius of Möbius strip
+const HW = 0.9;     // half-width
+const SEGU = 256;   // segments along u
+const SEGT = 64;    // segments along t
+const PIECE_SCALE = 0.28;
+const HOVER_OFFSET = 0.045; // pieces hover above the surface
+
+// ---- Colour palette ------------------------------------------------------
+const C_DEEP    = new THREE.Color('#0d0424');
+const C_FOLD    = new THREE.Color('#1a0a4e');
+const C_ARC     = new THREE.Color('#2d0f8a');
+const C_PULSE   = new THREE.Color('#7b2fff');
+const C_RIFT    = new THREE.Color('#00f5ff');
+const C_GOLD    = new THREE.Color('#c8a84b');
+const C_EMBER   = new THREE.Color('#ff3a1a');
+const C_TEXT    = new THREE.Color('#e8deff');
+
+/* ---------- Möbius math ---------- */
+function mobiusPoint(u, t, out) {
+  const cu2 = Math.cos(u * 0.5), su2 = Math.sin(u * 0.5);
+  const r   = R + t * cu2;
+  out.x = r * Math.cos(u);
+  out.y = r * Math.sin(u);
+  out.z = t * su2;
+  return out;
+}
+
+function mobiusNormal(u, t, out) {
+  // n ∝ ∂P/∂u × ∂P/∂t
+  const cu2 = Math.cos(u * 0.5), su2 = Math.sin(u * 0.5);
+  const r   = R + t * cu2;
+  // ∂P/∂t
+  const ptx = cu2 * Math.cos(u);
+  const pty = cu2 * Math.sin(u);
+  const ptz = su2;
+  // ∂P/∂u
+  const pux = -0.5 * t * su2 * Math.cos(u) - r * Math.sin(u);
+  const puy = -0.5 * t * su2 * Math.sin(u) + r * Math.cos(u);
+  const puz = 0.5 * t * cu2;
+  // cross
+  out.x = puy * ptz - puz * pty;
+  out.y = puz * ptx - pux * ptz;
+  out.z = pux * pty - puy * ptx;
+  return out.normalize();
+}
+
+// File (0..7) -> u centre, Rank (0..7) -> t centre
+function fileToU(f) { return (f + 0.5) / 8 * Math.PI * 2; }
+function rankToT(r) { return -HW + (r + 0.5) / 8 * (HW * 2); }
+
+// Topological wrap: when a file leaves [0,7] it flips rank and re-enters.
+function moebiusWrap(file, rank) {
+  if (file >= 0 && file <= 7) return { file, rank, wrapped: false };
+  if (file < 0)  return { file: 7,  rank: 7 - rank, wrapped: true };
+  /* file > 7 */ return { file: 0, rank: 7 - rank, wrapped: true };
+}
+
+/* ---------- Game state ---------- */
+function createInitialState() {
+  const board = Array.from({ length: 8 }, () => Array(8).fill(null));
+  const back = ['rook','knight','bishop','queen','king','bishop','knight','rook'];
+  for (let f = 0; f < 8; f++) {
+    board[f][0] = { type: back[f], color: 'white', hasMoved: false, wraps: 0 };
+    board[f][1] = { type: 'pawn',     color: 'white', hasMoved: false, wraps: 0 };
+    board[f][6] = { type: 'pawn',     color: 'black', hasMoved: false, wraps: 0 };
+    board[f][7] = { type: back[f], color: 'black', hasMoved: false, wraps: 0 };
+  }
+  return {
+    board,
+    turn: 'white',
+    selected: null,
+    legalMoves: [],
+    captured: { white: [], black: [] },
+    moveHistory: [],
+    inCheck: false,
+    checkmate: false,
+    stalemate: false,
+    promotionPending: null,
+    enPassantTarget: null,
+    castlingRights: { whiteK: true, whiteQ: true, blackK: true, blackQ: true },
+    halfMoveClock: 0,
+    fullMoveNumber: 1,
+    moebiusCrossings: 0,
+    lastMove: null,
+  };
+}
+
+let state = createInitialState();
+
+const PIECE_GLYPH = { pawn:'', knight:'N', bishop:'B', rook:'R', queen:'Q', king:'K' };
+
+/* ---------- Move generation ---------- */
+function inBounds(f, r) { return f >= 0 && f <= 7 && r >= 0 && r <= 7; }
+
+function pseudoLegalMoves(piece, f, r, st) {
+  const moves = [];
+  const color = piece.color;
+  switch (piece.type) {
+    case 'pawn':    return pawnMoves(piece, f, r, st);
+    case 'knight':  return knightMoves(color, f, r, st);
+    case 'bishop':  return slide(color, f, r, st, [[1,1],[1,-1],[-1,1],[-1,-1]], 'diagonal');
+    case 'rook':    return slide(color, f, r, st, [[1,0],[-1,0],[0,1],[0,-1]], 'straight');
+    case 'queen':   return slide(color, f, r, st, [[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]], 'any');
+    case 'king':    return kingMoves(piece, f, r, st);
+  }
+  return moves;
+}
+
+function pawnMoves(piece, f, r, st) {
+  const moves = [];
+  const forward = (piece.color === 'white' ? 1 : -1) * (piece.wraps % 2 === 0 ? 1 : -1);
+  const startRank = piece.color === 'white' ? 1 : 6;
+  // Forward 1
+  let nf = f, nr = r + forward, didWrap = false;
+  if (!inBounds(nf, nr)) return moves;
+  if (!st.board[nf][nr]) {
+    // Promotion?
+    const promo = (nr === 7) || (nr === 0);
+    moves.push({ file: nf, rank: nr, isCapture: false, isMoebiusWrap: false, isPromotion: promo });
+    // Forward 2 from start
+    if (r === startRank) {
+      const nr2 = r + 2 * forward;
+      if (inBounds(nf, nr2) && !st.board[nf][nr2]) {
+        moves.push({ file: nf, rank: nr2, isCapture: false, isMoebiusWrap: false, isDouble: true });
+      }
+    }
+  }
+  // Captures (and en passant)
+  for (const df of [-1, 1]) {
+    const tryF = f + df, tryR = r + forward;
+    if (tryR < 0 || tryR > 7) continue;
+    let tf = tryF, tr = tryR, wrap = false;
+    if (tryF < 0 || tryF > 7) {
+      const w = moebiusWrap(tryF, tryR);
+      if (w.rank < 0 || w.rank > 7) continue;
+      tf = w.file; tr = w.rank; wrap = true;
+    }
+    const target = st.board[tf][tr];
+    const promo = (tr === 7) || (tr === 0);
+    if (target && target.color !== piece.color) {
+      moves.push({ file: tf, rank: tr, isCapture: true, isMoebiusWrap: wrap, isPromotion: promo });
+    } else if (!target && st.enPassantTarget && st.enPassantTarget.file === tf && st.enPassantTarget.rank === tr) {
+      moves.push({ file: tf, rank: tr, isCapture: true, isEnPassant: true, isMoebiusWrap: wrap, isPromotion: promo });
+    }
+  }
+  return moves;
+}
+
+function knightMoves(color, f, r, st) {
+  const moves = [];
+  const offs = [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
+  for (const [df, dr] of offs) {
+    const tryF = f + df, tryR = r + dr;
+    if (tryR < 0 || tryR > 7) continue;
+    let tf = tryF, tr = tryR, wrap = false;
+    if (tryF < 0 || tryF > 7) {
+      const w = moebiusWrap(tryF, tryR);
+      if (w.rank < 0 || w.rank > 7) continue;
+      tf = w.file; tr = w.rank; wrap = true;
+    }
+    const target = st.board[tf][tr];
+    if (target && target.color === color) continue;
+    moves.push({ file: tf, rank: tr, isCapture: !!target, isMoebiusWrap: wrap });
+  }
+  return moves;
+}
+
+function kingMoves(piece, f, r, st) {
+  const moves = [];
+  for (let df = -1; df <= 1; df++) {
+    for (let dr = -1; dr <= 1; dr++) {
+      if (df === 0 && dr === 0) continue;
+      const tryF = f + df, tryR = r + dr;
+      if (tryR < 0 || tryR > 7) continue;
+      let tf = tryF, tr = tryR, wrap = false;
+      if (tryF < 0 || tryF > 7) {
+        const w = moebiusWrap(tryF, tryR);
+        if (w.rank < 0 || w.rank > 7) continue;
+        tf = w.file; tr = w.rank; wrap = true;
+      }
+      const target = st.board[tf][tr];
+      if (target && target.color === piece.color) continue;
+      moves.push({ file: tf, rank: tr, isCapture: !!target, isMoebiusWrap: wrap });
+    }
+  }
+  // Castling (short range, no Möbius wrap)
+  if (!st.inCheck && !piece.hasMoved) {
+    const rights = piece.color === 'white'
+      ? { k: st.castlingRights.whiteK, q: st.castlingRights.whiteQ, base: 0 }
+      : { k: st.castlingRights.blackK, q: st.castlingRights.blackQ, base: 7 };
+    // King-side: king e -> g, rook h -> f
+    if (rights.k) {
+      const rook = st.board[7][rights.base];
+      if (rook && rook.type === 'rook' && rook.color === piece.color && !rook.hasMoved) {
+        if (!st.board[5][rights.base] && !st.board[6][rights.base]) {
+          if (!isSquareAttacked(f, r, piece.color === 'white' ? 'black' : 'white', st) &&
+              !isSquareAttacked(5, rights.base, piece.color === 'white' ? 'black' : 'white', st) &&
+              !isSquareAttacked(6, rights.base, piece.color === 'white' ? 'black' : 'white', st)) {
+            moves.push({ file: 6, rank: rights.base, isCastle: 'K', isMoebiusWrap: false });
+          }
+        }
+      }
+    }
+    // Queen-side: king e -> c, rook a -> d
+    if (rights.q) {
+      const rook = st.board[0][rights.base];
+      if (rook && rook.type === 'rook' && rook.color === piece.color && !rook.hasMoved) {
+        if (!st.board[1][rights.base] && !st.board[2][rights.base] && !st.board[3][rights.base]) {
+          if (!isSquareAttacked(f, r, piece.color === 'white' ? 'black' : 'white', st) &&
+              !isSquareAttacked(3, rights.base, piece.color === 'white' ? 'black' : 'white', st) &&
+              !isSquareAttacked(2, rights.base, piece.color === 'white' ? 'black' : 'white', st)) {
+            moves.push({ file: 2, rank: rights.base, isCastle: 'Q', isMoebiusWrap: false });
+          }
+        }
+      }
+    }
+  }
+  return moves;
+}
+
+function slide(color, f, r, st, dirs, kind) {
+  const moves = [];
+  for (const [df, dr0] of dirs) {
+    let cf = f, cr = r;
+    let dr = dr0;
+    for (let step = 0; step < 24; step++) {
+      const nf = cf + df;
+      const nr = cr + dr;
+      let tf, tr, wrap = false;
+      if (nf < 0 || nf > 7) {
+        const w = moebiusWrap(nf, nr);
+        if (w.rank < 0 || w.rank > 7) break;
+        tf = w.file; tr = w.rank; wrap = true;
+        // Diagonal pieces flip t-direction after wrap
+        if (kind === 'diagonal' || kind === 'any') dr = -dr;
+      } else {
+        if (nr < 0 || nr > 7) break;
+        tf = nf; tr = nr;
+      }
+      const target = st.board[tf][tr];
+      if (target && target.color === color) break;
+      moves.push({ file: tf, rank: tr, isCapture: !!target, isMoebiusWrap: wrap });
+      if (target) break;
+      cf = tf; cr = tr;
+    }
+  }
+  return moves;
+}
+
+function isSquareAttacked(f, r, byColor, st) {
+  // Pawn attacks
+  const pawnForward = byColor === 'white' ? 1 : -1;
+  for (const df of [-1, 1]) {
+    const tryF = f + df, tryR = r + pawnForward;
+    if (tryR < 0 || tryR > 7) continue;
+    let tf = tryF, tr = tryR;
+    if (tryF < 0 || tryF > 7) {
+      const w = moebiusWrap(tryF, tryR);
+      if (w.rank < 0 || w.rank > 7) continue;
+      tf = w.file; tr = w.rank;
+    }
+    const p = st.board[tf][tr];
+    if (p && p.color === byColor && p.type === 'pawn') return true;
+  }
+  // Knight
+  const noffs = [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
+  for (const [df, dr] of noffs) {
+    const tryF = f + df, tryR = r + dr;
+    if (tryR < 0 || tryR > 7) continue;
+    let tf = tryF, tr = tryR;
+    if (tryF < 0 || tryF > 7) {
+      const w = moebiusWrap(tryF, tryR);
+      if (w.rank < 0 || w.rank > 7) continue;
+      tf = w.file; tr = w.rank;
+    }
+    const p = st.board[tf][tr];
+    if (p && p.color === byColor && p.type === 'knight') return true;
+  }
+  // King
+  for (let df = -1; df <= 1; df++) {
+    for (let dr = -1; dr <= 1; dr++) {
+      if (df === 0 && dr === 0) continue;
+      const tryF = f + df, tryR = r + dr;
+      if (tryR < 0 || tryR > 7) continue;
+      let tf = tryF, tr = tryR;
+      if (tryF < 0 || tryF > 7) {
+        const w = moebiusWrap(tryF, tryR);
+        if (w.rank < 0 || w.rank > 7) continue;
+        tf = w.file; tr = w.rank;
+      }
+      const p = st.board[tf][tr];
+      if (p && p.color === byColor && p.type === 'king') return true;
+    }
+  }
+  // Sliding (rook, bishop, queen) — full rays including Möbius
+  const slideDirs = {
+    rook:   [[1,0],[-1,0],[0,1],[0,-1]],
+    bishop: [[1,1],[1,-1],[-1,1],[-1,-1]],
+  };
+  for (const [df, dr0] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+    let cf = f, cr = r;
+    let dr = dr0;
+    for (let step = 0; step < 24; step++) {
+      const nf = cf + df, nr = cr + dr;
+      let tf, tr, wrap = false;
+      if (nf < 0 || nf > 7) {
+        const w = moebiusWrap(nf, nr);
+        if (w.rank < 0 || w.rank > 7) break;
+        tf = w.file; tr = w.rank; wrap = true;
+        if (df !== 0 && dr !== 0) dr = -dr;
+      } else {
+        if (nr < 0 || nr > 7) break;
+        tf = nf; tr = nr;
+      }
+      const p = st.board[tf][tr];
+      if (p) {
+        if (p.color === byColor) {
+          const isDiag = (df !== 0 && dr !== 0);
+          if ((p.type === 'queen') ||
+              (p.type === 'rook'   && !isDiag) ||
+              (p.type === 'bishop' && isDiag)) {
+            return true;
+          }
+        }
+        break;
+      }
+      cf = tf; cr = tr;
+    }
+  }
+  return false;
+}
+
+function findKing(color, st) {
+  for (let f = 0; f < 8; f++)
+    for (let r = 0; r < 8; r++) {
+      const p = st.board[f][r];
+      if (p && p.type === 'king' && p.color === color) return { file: f, rank: r };
+    }
+  return null;
+}
+
+function isInCheck(color, st) {
+  const k = findKing(color, st);
+  if (!k) return false;
+  const enemy = color === 'white' ? 'black' : 'white';
+  return isSquareAttacked(k.file, k.rank, enemy, st);
+}
+
+function getLegalMoves(f, r, st) {
+  const piece = st.board[f][r];
+  if (!piece) return [];
+  const pseudo = pseudoLegalMoves(piece, f, r, st);
+  const legal = [];
+  for (const m of pseudo) {
+    const undo = makeMoveUnchecked(f, r, m, st, /*apply*/ false);
+    if (!isInCheck(piece.color, st)) {
+      legal.push(m);
+    }
+    undo(st);
+  }
+  return legal;
+}
+
+function makeMoveUnchecked(fromF, fromR, move, st, apply) {
+  // Returns a function that undoes the move.
+  const piece = st.board[fromF][fromR];
+  const target = st.board[move.file][move.rank];
+  const capturedPiece = (move.isEnPassant)
+    ? st.board[move.file][fromR] // the pawn that moved 2 squares is at the same file, the rank the mover came from
+    : target;
+  const prevEnPassant = st.enPassantTarget;
+  const prevCastling = { ...st.castlingRights };
+  const prevHalfMove = st.halfMoveClock;
+  const wrapToggle = move.isMoebiusWrap ? 1 : 0;
+  const newWraps = (piece.wraps + wrapToggle) | 0;
+
+  return function undo(s) {
+    // Undo
+    s.board[fromF][fromR] = piece;
+    s.board[move.file][move.rank] = target;
+    if (move.isEnPassant) {
+      s.board[move.file][fromR] = capturedPiece;
+    }
+    piece.wraps = newWraps; // piece moved; toggle already applied during forward
+    s.enPassantTarget = prevEnPassant;
+    s.castlingRights = prevCastling;
+    s.halfMoveClock = prevHalfMove;
+  };
+}
+
+// Apply a move to state. Assumes move is legal.
+function applyMove(fromF, fromR, move, promoteTo) {
+  const piece = state.board[fromF][fromR];
+  const color = piece.color;
+  let capturedPiece = null;
+  let capturedFromSquare = null;
+
+  // En passant capture: remove the pawn on the same file, mover's start rank
+  if (move.isEnPassant) {
+    capturedPiece = state.board[move.file][fromR];
+    state.board[move.file][fromR] = null;
+    capturedFromSquare = { file: move.file, rank: fromR };
+  } else {
+    capturedPiece = state.board[move.file][move.rank];
+    capturedFromSquare = { file: move.file, rank: move.rank };
+  }
+
+  // Move piece
+  state.board[move.file][move.rank] = piece;
+  state.board[fromF][fromR] = null;
+
+  // Toggle wraps parity
+  if (move.isMoebiusWrap) {
+    piece.wraps = (piece.wraps + 1) | 0;
+    state.moebiusCrossings += 1;
+  }
+
+  // Double-step en passant target
+  if (move.isDouble) {
+    state.enPassantTarget = { file: move.file, rank: (fromR + move.rank) / 2 };
+  } else {
+    state.enPassantTarget = null;
+  }
+
+  // Castling
+  if (move.isCastle === 'K') {
+    const rook = state.board[7][move.rank];
+    state.board[5][move.rank] = rook;
+    state.board[7][move.rank] = null;
+    if (rook) rook.hasMoved = true;
+  } else if (move.isCastle === 'Q') {
+    const rook = state.board[0][move.rank];
+    state.board[3][move.rank] = rook;
+    state.board[0][move.rank] = null;
+    if (rook) rook.hasMoved = true;
+  }
+
+  // Promotion
+  if (move.isPromotion && promoteTo) {
+    piece.type = promoteTo;
+  }
+
+  // Mark moved
+  piece.hasMoved = true;
+
+  // Castling rights — invalidate if rook or king moves
+  if (piece.type === 'king') {
+    if (color === 'white') { state.castlingRights.whiteK = false; state.castlingRights.whiteQ = false; }
+    else { state.castlingRights.blackK = false; state.castlingRights.blackQ = false; }
+  }
+  if (piece.type === 'rook') {
+    if (color === 'white') {
+      if (fromF === 0) state.castlingRights.whiteQ = false;
+      if (fromF === 7) state.castlingRights.whiteK = false;
+    } else {
+      if (fromF === 0) state.castlingRights.blackQ = false;
+      if (fromF === 7) state.castlingRights.blackK = false;
+    }
+  }
+  // If a rook is captured on its starting square, lose the right
+  if (capturedPiece && capturedPiece.type === 'rook') {
+    if (capturedFromSquare.file === 0 && capturedFromSquare.rank === (color === 'white' ? 7 : 0)) {
+      if (color === 'white') state.castlingRights.blackQ = false; else state.castlingRights.whiteQ = false;
+    }
+    if (capturedFromSquare.file === 7 && capturedFromSquare.rank === (color === 'white' ? 7 : 0)) {
+      if (color === 'white') state.castlingRights.blackK = false; else state.castlingRights.whiteK = false;
+    }
+  }
+
+  // Half-move clock
+  if (piece.type === 'pawn' || capturedPiece) state.halfMoveClock = 0;
+  else state.halfMoveClock += 1;
+
+  // Capture log
+  if (capturedPiece) {
+    state.captured[capturedPiece.color].push(capturedPiece);
+  }
+
+  // Move history entry
+  const san = toSAN(piece, fromF, fromR, move, capturedPiece, promoteTo);
+  state.moveHistory.push({
+    san,
+    piece: piece.type,
+    color,
+    from: { file: fromF, rank: fromR },
+    to:   { file: move.file, rank: move.rank },
+    captured: capturedPiece ? capturedPiece.type : null,
+    isMoebiusWrap: !!move.isMoebiusWrap,
+    isCastle: move.isCastle || null,
+    isPromotion: !!move.isPromotion,
+  });
+
+  state.lastMove = { from: { file: fromF, rank: fromR }, to: { file: move.file, rank: move.rank } };
+
+  // Switch turn
+  if (state.turn === 'white') state.turn = 'black';
+  else { state.turn = 'white'; state.fullMoveNumber += 1; }
+
+  // Update check / mate / stale
+  const enemy = state.turn;
+  state.inCheck = isInCheck(enemy, state);
+  if (state.inCheck) {
+    // Look for any legal move for the enemy
+    let any = false;
+    for (let f = 0; f < 8 && !any; f++) {
+      for (let r = 0; r < 8 && !any; r++) {
+        const p = state.board[f][r];
+        if (p && p.color === enemy) {
+          if (getLegalMoves(f, r, state).length > 0) any = true;
+        }
+      }
+    }
+    if (!any) state.checkmate = true;
+  } else {
+    // Stalemate: no legal moves and not in check
+    let any = false;
+    for (let f = 0; f < 8 && !any; f++) {
+      for (let r = 0; r < 8 && !any; r++) {
+        const p = state.board[f][r];
+        if (p && p.color === enemy) {
+          if (getLegalMoves(f, r, state).length > 0) any = true;
+        }
+      }
+    }
+    if (!any) state.stalemate = true;
+  }
+
+  return { capturedPiece, capturedFromSquare, piece };
+}
+
+function toSAN(piece, fromF, fromR, move, captured, promoteTo) {
+  let s = '';
+  if (move.isCastle === 'K') s = 'O-O';
+  else if (move.isCastle === 'Q') s = 'O-O-O';
+  else {
+    const isPawn = piece.type === 'pawn';
+    if (!isPawn) s += PIECE_GLYPH[piece.type];
+    if (captured) {
+      if (isPawn) s += String.fromCharCode(97 + fromF);
+      s += 'x';
+    }
+    s += String.fromCharCode(97 + move.file) + (move.rank + 1);
+    if (move.isPromotion) s += '=' + (PIECE_GLYPH[promoteTo || 'queen'] || 'Q');
+  }
+  if (move.isMoebiusWrap) s = '⟆' + s;
+  return s;
+}
+
+/* ========================================================================
+ *  THREE.JS SCENE
+ * ====================================================================== */
+const stageEl = document.getElementById('stage');
+const W = () => stageEl.clientWidth;
+const H = () => stageEl.clientHeight;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, W()/H(), 0.1, 100);
+camera.position.set(0, 3, 8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(W(), H());
+renderer.setClearColor(0x000000, 0);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stageEl.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 4;
+controls.maxDistance = 18;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.3;
+controls.target.set(0, 0, 0);
+
+let lastUserInteract = 0;
+controls.addEventListener('start', () => { controls.autoRotate = false; lastUserInteract = performance.now(); });
+controls.addEventListener('end',   () => { lastUserInteract = performance.now(); });
+
+/* ---------- Lights ---------- */
+scene.add(new THREE.AmbientLight(0x1a0a2e, 0.4));
+const lights = [
+  { c: 0x7b2fff, pos: [ 0,  4,  0] },
+  { c: 0x00f5ff, pos: [-3,  3,  3] },
+  { c: 0xffd700, pos: [ 3,  3, -3] },
+];
+for (const L of lights) {
+  const p = new THREE.PointLight(L.c, 1.6, 20, 1.6);
+  p.position.set(...L.pos);
+  scene.add(p);
+}
+const spot = new THREE.SpotLight(0xffffff, 1.2, 30, Math.PI * 0.25, 0.4, 1.2);
+spot.position.set(0, 6, 0);
+spot.target.position.set(0, 0, 0);
+spot.castShadow = true;
+spot.shadow.mapSize.set(1024, 1024);
+spot.shadow.bias = -0.0008;
+scene.add(spot); scene.add(spot.target);
+
+/* ---------- Nebula sphere ---------- */
+function makeNebulaTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 512;
+  const g = c.getContext('2d');
+  // base
+  const grad = g.createRadialGradient(256, 256, 30, 256, 256, 360);
+  grad.addColorStop(0,   '#2a0a55');
+  grad.addColorStop(0.4, '#100333');
+  grad.addColorStop(1,   '#04020f');
+  g.fillStyle = grad; g.fillRect(0, 0, 512, 512);
+  // nebula wisps
+  for (let i = 0; i < 60; i++) {
+    const x = Math.random() * 512, y = Math.random() * 512;
+    const r = 30 + Math.random() * 80;
+    const hue = 250 + Math.random() * 60;
+    const rg = g.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, `hsla(${hue}, 80%, 60%, 0.18)`);
+    rg.addColorStop(1, `hsla(${hue}, 80%, 30%, 0)`);
+    g.fillStyle = rg; g.fillRect(0, 0, 512, 512);
+  }
+  // stars
+  for (let i = 0; i < 200; i++) {
+    g.fillStyle = `rgba(255,255,255,${0.2 + Math.random() * 0.6})`;
+    g.fillRect(Math.random()*512, Math.random()*512, 1, 1);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const nebulaTex = makeNebulaTexture();
+const nebulaMat = new THREE.MeshBasicMaterial({ map: nebulaTex, side: THREE.BackSide, transparent: true, opacity: 0.85 });
+const nebula = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 32), nebulaMat);
+scene.add(nebula);
+
+/* ---------- Möbius strip mesh ---------- */
+function buildMobiusGeometry() {
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+  // Build segU+1 rings × segT+1 rows. The seam is duplicated.
+  for (let i = 0; i <= SEGU; i++) {
+    const u = (i / SEGU) * Math.PI * 2;
+    for (let j = 0; j <= SEGT; j++) {
+      const t = -HW + (j / SEGT) * (HW * 2);
+      const p = new THREE.Vector3();
+      mobiusPoint(u, t, p);
+      positions.push(p.x, p.y, p.z);
+      uvs.push(i / SEGU, j / SEGT);
+    }
+  }
+  for (let i = 0; i < SEGU; i++) {
+    for (let j = 0; j < SEGT; j++) {
+      const a = i       * (SEGT + 1) + j;
+      const b = (i + 1) * (SEGT + 1) + j;
+      const c = (i + 1) * (SEGT + 1) + j + 1;
+      const d = i       * (SEGT + 1) + j + 1;
+      indices.push(a, b, d, b, c, d);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+const stripUniforms = {
+  uTime:  { value: 0 },
+  uDeep:  { value: C_DEEP },
+  uFold:  { value: C_FOLD },
+  uArc:   { value: C_ARC },
+  uPulse: { value: C_PULSE },
+  uGold:  { value: C_GOLD },
+  uSelected: { value: new THREE.Vector2(-1, -1) },
+  uHoverPulse: { value: 0.0 },
+  uMoebiusGlow: { value: 0.0 },
+};
+
+const stripMat = new THREE.ShaderMaterial({
+  uniforms: stripUniforms,
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    varying vec3 vWorldPos;
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+    void main() {
+      vUv = uv;
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      vWorldPos = wp.xyz;
+      vNormal = normalize(normalMatrix * normal);
+      vec4 mv = viewMatrix * wp;
+      vViewDir = -mv.xyz;
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: /* glsl */`
+    precision highp float;
+    uniform float uTime;
+    uniform vec3 uDeep;
+    uniform vec3 uFold;
+    uniform vec3 uArc;
+    uniform vec3 uPulse;
+    uniform vec3 uGold;
+    uniform vec2 uSelected;
+    uniform float uHoverPulse;
+    uniform float uMoebiusGlow;
+    varying vec2 vUv;
+    varying vec3 vWorldPos;
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+
+    // pseudo-random
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+    void main() {
+      // Checkerboard from UV
+      float fileF = vUv.x * 8.0;
+      float rankF = vUv.y * 8.0;
+      float parity = mod(floor(fileF) + floor(rankF), 2.0);
+      vec3 base = mix(uDeep, uFold, parity);
+      base = mix(base, uArc, 0.20);
+
+      // Edge stripe (t-norm near ±1)
+      float tNorm = (vUv.y - 0.5) * 2.0;
+      float edgeMask = smoothstep(0.85, 1.0, abs(tNorm));
+      base = mix(base, uGold, edgeMask * 0.75);
+
+      // Highlighted square (selected piece)
+      vec2 selUV = (uSelected + 0.5) / 8.0;
+      float dx = abs(vUv.x - selUV.x);
+      float dy = abs(vUv.y - selUV.y);
+      // wrap dx across seam
+      dx = min(dx, 1.0 - dx);
+      float selDist = max(dx, dy);
+      float selMask = smoothstep(0.07, 0.02, selDist) * (0.45 + 0.45 * sin(uTime * 5.0));
+      base = mix(base, uPulse, selMask * 0.6);
+
+      // Iridescence (view-dependent)
+      vec3 n = normalize(vNormal);
+      vec3 v = normalize(vViewDir);
+      float ndv = clamp(dot(n, v), 0.0, 1.0);
+      float fres = pow(1.0 - ndv, 3.0);
+      float hue = fract(0.6 + fres * 0.8 + vUv.x * 0.15);
+      vec3 irid = clamp(abs(fract(hue + vec3(0.0, 2.0/3.0, 1.0/3.0)) * 2.0 - 1.0), 0.0, 1.0);
+      irid = mix(vec3(0.4, 0.3, 0.8), irid, 0.6);
+      base = mix(base, irid, 0.12);
+
+      // Rim light
+      base += uPulse * pow(fres, 3.5) * 0.45;
+
+      // Subtle shimmer
+      float shimmer = sin(vUv.x * 50.0 + uTime * 0.6) * 0.018
+                    + sin(vUv.y * 30.0 - uTime * 0.4) * 0.010;
+      base += vec3(shimmer * 0.6, shimmer * 0.3, shimmer);
+
+      // Möbius seam glow (slight boost at u=0/1 edge)
+      float seam = 1.0 - smoothstep(0.0, 0.02, min(vUv.x, 1.0 - vUv.x));
+      base += uPulse * seam * (0.15 + uMoebiusGlow * 0.6);
+
+      gl_FragColor = vec4(base, 1.0);
+    }
+  `,
+  side: THREE.DoubleSide,
+});
+
+const stripMesh = new THREE.Mesh(buildMobiusGeometry(), stripMat);
+stripMesh.castShadow = false;
+stripMesh.receiveShadow = true;
+scene.add(stripMesh);
+
+/* ---------- Square hit-planes + highlight quads ---------- */
+const squareGroup = new THREE.Group();
+scene.add(squareGroup);
+const squareMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
+
+// Highlight overlay meshes (selected ring, legal-move dots, capture ring, last-move, check)
+const highlights = {
+  selected: null,
+  legal: [],
+  capture: [],
+  last: null,
+  check: null,
+};
+
+const TMP_VEC = new THREE.Vector3();
+const TMP_NORM = new THREE.Vector3();
+
+function makeQuadGeometry(size) {
+  // Return a small PlaneGeometry sized to roughly match square dimensions on the strip.
+  return new THREE.PlaneGeometry(size, size);
+}
+
+const SQUARE_SIZE = (HW * 2) / 8; // approximate width of one rank step
+const PLANE_SIZE  = SQUARE_SIZE * 0.95;
+
+function buildSquarePlanes() {
+  for (let f = 0; f < 8; f++) {
+    for (let r = 0; r < 8; r++) {
+      const u = fileToU(f), t = rankToT(r);
+      const centre = new THREE.Vector3();
+      mobiusPoint(u, t, centre);
+      const n = new THREE.Vector3();
+      mobiusNormal(u, t, n);
+      const geo = makeQuadGeometry(PLANE_SIZE);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0.0, side: THREE.DoubleSide, depthWrite: false,
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.copy(centre).addScaledVector(n, 0.005);
+      // Look toward (centre - normal) so the plane's +Z aligns with the surface normal
+      const lookTarget = new THREE.Vector3().copy(centre).sub(n);
+      m.lookAt(lookTarget);
+      m.userData = { file: f, rank: r, isSquare: true };
+      squareGroup.add(m);
+      squareMeshes[f][r] = m;
+    }
+  }
+}
+buildSquarePlanes();
+
+// Highlight meshes
+function makeHighlightMesh(color, opacity, scale, pulse = false) {
+  const geo = new THREE.RingGeometry(PLANE_SIZE * 0.32, PLANE_SIZE * 0.42, 32);
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
+  const m = new THREE.Mesh(geo, mat);
+  m.userData.pulse = pulse;
+  m.userData.baseOpacity = opacity;
+  m.visible = false;
+  return m;
+}
+function makeCircleMesh(color, opacity, scale) {
+  const geo = new THREE.CircleGeometry(PLANE_SIZE * scale, 32);
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
+  const m = new THREE.Mesh(geo, mat);
+  m.userData.baseOpacity = opacity;
+  m.visible = false;
+  return m;
+}
+
+const HIGHLIGHT_GROUP = new THREE.Group();
+scene.add(HIGHLIGHT_GROUP);
+
+function attachHighlight(mesh, f, r) {
+  const u = fileToU(f), t = rankToT(r);
+  const centre = new THREE.Vector3();
+  mobiusPoint(u, t, centre);
+  const n = new THREE.Vector3();
+  mobiusNormal(u, t, n);
+  mesh.position.copy(centre).addScaledVector(n, 0.012);
+  mesh.lookAt(new THREE.Vector3().copy(centre).sub(n));
+}
+
+function clearHighlights() {
+  for (const k of ['selected','last','check']) {
+    if (highlights[k]) { HIGHLIGHT_GROUP.remove(highlights[k]); highlights[k] = null; }
+  }
+  for (const m of highlights.legal) HIGHLIGHT_GROUP.remove(m);
+  highlights.legal = [];
+  for (const m of highlights.capture) HIGHLIGHT_GROUP.remove(m);
+  highlights.capture = [];
+}
+
+function refreshHighlights() {
+  clearHighlights();
+  // Last move
+  if (state.lastMove) {
+    const fromF = state.lastMove.from.file, fromR = state.lastMove.from.rank;
+    const toF   = state.lastMove.to.file,   toR   = state.lastMove.to.rank;
+    for (const [f, r] of [[fromF, fromR], [toF, toR]]) {
+      const m = makeCircleMesh(C_GOLD, 0.18, 0.45);
+      attachHighlight(m, f, r);
+      HIGHLIGHT_GROUP.add(m);
+      if (!highlights.last) highlights.last = m; // keep one ref for re-render
+    }
+  }
+  // Check
+  if (state.inCheck) {
+    const k = findKing(state.turn, state);
+    if (k) {
+      const m = makeCircleMesh(C_EMBER, 0.45, 0.5);
+      m.userData.pulse = true;
+      attachHighlight(m, k.file, k.rank);
+      HIGHLIGHT_GROUP.add(m);
+      highlights.check = m;
+    }
+  }
+  // Selected & legal moves
+  if (state.selected) {
+    const sel = state.selected;
+    // Ring around selected
+    const ringGeo = new THREE.RingGeometry(PLANE_SIZE * 0.36, PLANE_SIZE * 0.46, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color: C_PULSE, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.userData.pulse = true;
+    ring.userData.baseOpacity = 0.9;
+    attachHighlight(ring, sel.file, sel.rank);
+    HIGHLIGHT_GROUP.add(ring);
+    highlights.selected = ring;
+    // Four corner chevrons
+    const chevGeo = new THREE.PlaneGeometry(PLANE_SIZE * 0.18, PLANE_SIZE * 0.18);
+    const chevMat = new THREE.MeshBasicMaterial({ color: C_GOLD, transparent: true, opacity: 0.95, depthWrite: false });
+    const offs = [[-0.32, -0.32], [0.32, -0.32], [-0.32, 0.32], [0.32, 0.32]];
+    for (const [ox, oy] of offs) {
+      const ch = new THREE.Mesh(chevGeo, chevMat);
+      const u = fileToU(sel.file), t = rankToT(sel.rank);
+      const centre = new THREE.Vector3(); mobiusPoint(u, t, centre);
+      const n = new THREE.Vector3(); mobiusNormal(u, t, n);
+      const tanU = new THREE.Vector3();
+      mobiusPoint(u + 0.01, t, tanU).sub(centre).normalize();
+      const tanT = new THREE.Vector3();
+      mobiusPoint(u, t + 0.01, tanT).sub(centre).normalize();
+      const offsetWorld = new THREE.Vector3()
+        .addScaledVector(tanU, ox * PLANE_SIZE * 0.5)
+        .addScaledVector(tanT, oy * PLANE_SIZE * 0.5);
+      ch.position.copy(centre).add(offsetWorld).addScaledVector(n, 0.014);
+      ch.lookAt(new THREE.Vector3().copy(ch.position).sub(n));
+      HIGHLIGHT_GROUP.add(ch);
+    }
+    // Legal moves
+    for (const m of state.legalMoves) {
+      if (m.isCastle) continue; // castling rook-travelled square is part of castle move; no separate dot
+      if (m.isCapture || m.isEnPassant) {
+        const ringGeo = new THREE.RingGeometry(PLANE_SIZE * 0.30, PLANE_SIZE * 0.42, 24);
+        const ringMat = new THREE.MeshBasicMaterial({ color: C_EMBER, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.userData.pulse = true;
+        ring.userData.baseOpacity = 0.85;
+        attachHighlight(ring, m.file, m.rank);
+        HIGHLIGHT_GROUP.add(ring);
+        highlights.capture.push(ring);
+        // inner fill
+        const fill = new THREE.Mesh(
+          new THREE.CircleGeometry(PLANE_SIZE * 0.20, 24),
+          new THREE.MeshBasicMaterial({ color: C_EMBER, transparent: true, opacity: 0.30, depthWrite: false, side: THREE.DoubleSide })
+        );
+        attachHighlight(fill, m.file, m.rank);
+        fill.position.copy(ring.position);
+        fill.lookAt(new THREE.Vector3().copy(fill.position).sub(new THREE.Vector3(0,0,1))); // not needed visually
+        HIGHLIGHT_GROUP.add(fill);
+      } else {
+        const dotGeo = new THREE.CircleGeometry(PLANE_SIZE * 0.13, 24);
+        const dotMat = new THREE.MeshBasicMaterial({ color: C_RIFT, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
+        const dot = new THREE.Mesh(dotGeo, dotMat);
+        attachHighlight(dot, m.file, m.rank);
+        HIGHLIGHT_GROUP.add(dot);
+        highlights.legal.push(dot);
+      }
+    }
+  }
+  // Update selected UV uniform for strip glow
+  if (state.selected) {
+    stripUniforms.uSelected.value.set(state.selected.file, state.selected.rank);
+    stripUniforms.uHoverPulse.value = 1.0;
+  } else {
+    stripUniforms.uSelected.value.set(-1, -1);
+    stripUniforms.uHoverPulse.value = 0.0;
+  }
+}
+
+/* ---------- Piece sprites ---------- */
+const PIECE_URLS = {
+  white: {
+    king:   'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Chess_klt45.svg/128px-Chess_klt45.svg.png',
+    queen:  'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Chess_qlt45.svg/128px-Chess_qlt45.svg.png',
+    rook:   'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Chess_rlt45.svg/128px-Chess_rlt45.svg.png',
+    bishop: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Chess_blt45.svg/128px-Chess_blt45.svg.png',
+    knight: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Chess_nlt45.svg/128px-Chess_nlt45.svg.png',
+    pawn:   'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Chess_plt45.svg/128px-Chess_plt45.svg.png',
+  },
+  black: {
+    king:   'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Chess_kdt45.svg/128px-Chess_kdt45.svg.png',
+    queen:  'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Chess_qdt45.svg/128px-Chess_qdt45.svg.png',
+    rook:   'https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Chess_rdt45.svg/128px-Chess_rdt45.svg.png',
+    bishop: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Chess_bdt45.svg/128px-Chess_bdt45.svg.png',
+    knight: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Chess_ndt45.svg/128px-Chess_ndt45.svg.png',
+    pawn:   'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Chess_pdt45.svg/128px-Chess_pdt45.svg.png',
+  }
+};
+
+function makeProceduralPieceTexture(color, type) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const base = color === 'white' ? '#f4eeff' : '#1a0a3a';
+  const stroke = color === 'white' ? '#7b2fff' : '#00f5ff';
+  const accent = color === 'white' ? '#00f5ff' : '#c8a84b';
+  g.clearRect(0, 0, 256, 256);
+  // halo
+  const halo = g.createRadialGradient(128, 128, 30, 128, 128, 120);
+  halo.addColorStop(0, color === 'white' ? 'rgba(123,47,255,0.35)' : 'rgba(255,58,26,0.35)');
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = halo; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = base;
+  g.strokeStyle = stroke;
+  g.lineWidth = 4;
+  g.lineCap = 'round'; g.lineJoin = 'round';
+
+  function drawBase(cx, cy, w, h) {
+    g.beginPath();
+    g.ellipse(cx, cy + h * 0.4, w * 0.5, h * 0.15, 0, 0, Math.PI * 2);
+    g.fill(); g.stroke();
+  }
+  function drawStem(cx, cy, w, h) {
+    g.fillRect(cx - w * 0.08, cy, w * 0.16, h * 0.4);
+    g.strokeRect(cx - w * 0.08, cy, w * 0.16, h * 0.4);
+  }
+  function drawTop(cx, cy, w, h) {
+    g.beginPath();
+    g.arc(cx, cy, w * 0.18, 0, Math.PI * 2);
+    g.fill(); g.stroke();
+  }
+
+  // Different silhouettes
+  if (type === 'pawn') {
+    drawBase(128, 175, 60, 60);
+    drawStem(128, 95, 60, 90);
+    drawTop(128, 90, 60, 60);
+  } else if (type === 'rook') {
+    drawBase(128, 180, 90, 60);
+    g.beginPath();
+    g.rect(100, 70, 56, 100);
+    g.fill(); g.stroke();
+    // battlements
+    for (let i = 0; i < 3; i++) {
+      g.beginPath();
+      g.rect(100 + i * 22, 55, 14, 18);
+      g.fill(); g.stroke();
+    }
+  } else if (type === 'bishop') {
+    drawBase(128, 180, 70, 60);
+    g.beginPath();
+    g.moveTo(95, 70);
+    g.quadraticCurveTo(128, 30, 161, 70);
+    g.lineTo(155, 165);
+    g.lineTo(101, 165);
+    g.closePath();
+    g.fill(); g.stroke();
+    g.beginPath();
+    g.arc(128, 60, 6, 0, Math.PI * 2);
+    g.fillStyle = accent; g.fill();
+  } else if (type === 'knight') {
+    drawBase(128, 180, 80, 60);
+    g.beginPath();
+    g.moveTo(85, 165);
+    g.lineTo(85, 110);
+    g.quadraticCurveTo(85, 50, 150, 60);
+    g.quadraticCurveTo(180, 75, 170, 115);
+    g.lineTo(155, 130);
+    g.lineTo(165, 165);
+    g.closePath();
+    g.fill(); g.stroke();
+    g.fillStyle = accent;
+    g.beginPath(); g.arc(150, 85, 4, 0, Math.PI * 2); g.fill();
+  } else if (type === 'queen') {
+    drawBase(128, 180, 100, 60);
+    g.beginPath();
+    g.moveTo(78, 80);
+    g.lineTo(95, 130);
+    g.lineTo(115, 90);
+    g.lineTo(128, 140);
+    g.lineTo(141, 90);
+    g.lineTo(161, 130);
+    g.lineTo(178, 80);
+    g.closePath();
+    g.fill(); g.stroke();
+    // crown circles
+    [88, 115, 128, 141, 168].forEach(x => {
+      g.beginPath(); g.arc(x, 75, 6, 0, Math.PI * 2); g.fill(); g.stroke();
+    });
+  } else if (type === 'king') {
+    drawBase(128, 180, 100, 60);
+    g.beginPath();
+    g.moveTo(85, 165);
+    g.lineTo(85, 90);
+    g.lineTo(171, 90);
+    g.lineTo(171, 165);
+    g.closePath();
+    g.fill(); g.stroke();
+    // cross
+    g.beginPath();
+    g.rect(120, 30, 16, 60);
+    g.rect(105, 48, 46, 24);
+    g.fillStyle = accent; g.fill();
+    g.strokeStyle = stroke; g.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+const pieceTextures = { white: {}, black: {} };
+const fallbackUsed = { white: {}, black: {} };
+
+// Procedural-only loader: instant, no network, no console errors.
+// Each piece is drawn on a 256x256 canvas with a halo + silhouette.
+function loadPieceTexture(color, type) {
+  return new Promise((resolve) => {
+    fallbackUsed[color][type] = true;
+    const tex = makeProceduralPieceTexture(color, type);
+    pieceTextures[color][type] = tex;
+    resolve(tex);
+  });
+}
+
+async function loadAllPieceTextures() {
+  const tasks = [];
+  for (const color of ['white','black']) {
+    for (const type of ['king','queen','rook','bishop','knight','pawn']) {
+      tasks.push(loadPieceTexture(color, type).then(tex => { pieceTextures[color][type] = tex; }));
+    }
+  }
+  await Promise.all(tasks);
+}
+
+const piecesGroup = new THREE.Group();
+scene.add(piecesGroup);
+const spriteMap = new Map(); // "f,r" -> THREE.Sprite
+
+function getSquareWorldPos(f, r) {
+  const u = fileToU(f), t = rankToT(r);
+  const p = new THREE.Vector3();
+  mobiusPoint(u, t, p);
+  return p;
+}
+function getSquareNormal(f, r) {
+  const u = fileToU(f), t = rankToT(r);
+  const n = new THREE.Vector3();
+  mobiusNormal(u, t, n);
+  return n;
+}
+
+function makePieceSprite(piece) {
+  const tex = pieceTextures[piece.color][piece.type];
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: true, depthTest: true });
+  const s = new THREE.Sprite(mat);
+  s.scale.set(PIECE_SCALE, PIECE_SCALE, 1);
+  s.userData = { piece, file: -1, rank: -1 };
+  piecesGroup.add(s);
+  return s;
+}
+
+function rebuildAllPieceSprites() {
+  // Remove existing
+  for (const s of spriteMap.values()) {
+    piecesGroup.remove(s);
+    s.material.dispose();
+  }
+  spriteMap.clear();
+  for (let f = 0; f < 8; f++) {
+    for (let r = 0; r < 8; r++) {
+      const p = state.board[f][r];
+      if (p) {
+        const s = makePieceSprite(p);
+        placeSpriteAt(s, f, r);
+        spriteMap.set(`${f},${r}`, s);
+      }
+    }
+  }
+}
+
+function placeSpriteAt(sprite, f, r) {
+  const p = getSquareWorldPos(f, r);
+  const n = getSquareNormal(f, r);
+  sprite.position.copy(p).addScaledVector(n, HOVER_OFFSET);
+  sprite.userData.file = f;
+  sprite.userData.rank = r;
+}
+
+/* ---------- Particles ---------- */
+const PARTICLE_COUNT = 4000;
+function makeParticles() {
+  const geom = new THREE.BufferGeometry();
+  const positions = new Float32Array(PARTICLE_COUNT * 3);
+  const phases = new Float32Array(PARTICLE_COUNT);
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    // Distribute in a sphere of radius 7
+    const r = 3 + Math.random() * 4;
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.acos(2 * Math.random() - 1);
+    positions[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    positions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+    positions[i*3+2] = r * Math.cos(phi) * 0.6; // flatter distribution
+    phases[i] = Math.random() * Math.PI * 2;
+  }
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('phase',   new THREE.Float32BufferAttribute(phases, 1));
+  const mat = new THREE.PointsMaterial({
+    color: 0xa080ff, size: 0.02, sizeAttenuation: true, transparent: true, opacity: 0.7,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const pts = new THREE.Points(geom, mat);
+  scene.add(pts);
+  return { pts, geom, positions, phases, mat };
+}
+const particles = makeParticles();
+
+/* ---------- Post-processing ---------- */
+const composer = new EffectComposer(renderer);
+composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+composer.setSize(W(), H());
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(W(), H()), 0.8, 0.4, 0.2);
+composer.addPass(bloomPass);
+const fxaaPass = new ShaderPass(FXAAShader);
+fxaaPass.material.uniforms['resolution'].value.set(1 / (W() * renderer.getPixelRatio()), 1 / (H() * renderer.getPixelRatio()));
+composer.addPass(fxaaPass);
+
+/* ========================================================================
+ *  INTERACTION
+ * ====================================================================== */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let pointerDownXY = null;
+let pointerMoved = false;
+
+function onPointerDown(e) {
+  pointerDownXY = { x: e.clientX, y: e.clientY };
+  pointerMoved = false;
+}
+function onPointerMove(e) {
+  if (pointerDownXY) {
+    const dx = e.clientX - pointerDownXY.x, dy = e.clientY - pointerDownXY.y;
+    if (dx * dx + dy * dy > 16) pointerMoved = true;
+  }
+}
+function onPointerUp(e) {
+  if (pointerDownXY && !pointerMoved && !state.checkmate && !state.stalemate) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    handleClick();
+  }
+  pointerDownXY = null;
+}
+renderer.domElement.addEventListener('pointerdown', onPointerDown);
+renderer.domElement.addEventListener('pointermove', onPointerMove);
+renderer.domElement.addEventListener('pointerup', onPointerUp);
+renderer.domElement.addEventListener('pointercancel', () => { pointerDownXY = null; });
+
+function handleClick() {
+  raycaster.setFromCamera(pointer, camera);
+  // Try pieces first
+  const pieceTargets = [];
+  for (const s of spriteMap.values()) pieceTargets.push(s);
+  const pieceHits = raycaster.intersectObjects(pieceTargets, false);
+  if (pieceHits.length > 0) {
+    const hit = pieceHits[0].object;
+    const f = hit.userData.file, r = hit.userData.rank;
+    onSquareClicked(f, r);
+    return;
+  }
+  // Then squares
+  const sqHits = raycaster.intersectObjects(squareGroup.children, false);
+  if (sqHits.length > 0) {
+    const hit = sqHits[0].object;
+    const f = hit.userData.file, r = hit.userData.rank;
+    onSquareClicked(f, r);
+    return;
+  }
+  // Miss
+  if (state.selected) {
+    state.selected = null;
+    state.legalMoves = [];
+    refreshHighlights();
+    updateHUD();
+  }
+}
+
+function onSquareClicked(f, r) {
+  const piece = state.board[f][r];
+  if (state.selected) {
+    const move = state.legalMoves.find(m => m.file === f && m.rank === r);
+    if (move) {
+      executePlayerMove(state.selected.file, state.selected.rank, move);
+      return;
+    }
+    if (piece && piece.color === state.turn) {
+      state.selected = { file: f, rank: r };
+      state.legalMoves = getLegalMoves(f, r, state);
+      refreshHighlights();
+      updateHUD();
+      return;
+    }
+    // Clicked elsewhere
+    state.selected = null;
+    state.legalMoves = [];
+    refreshHighlights();
+    updateHUD();
+    return;
+  }
+  // No selection
+  if (piece && piece.color === state.turn) {
+    state.selected = { file: f, rank: r };
+    state.legalMoves = getLegalMoves(f, r, state);
+    refreshHighlights();
+    updateHUD();
+    playSelectChime();
+  }
+}
+
+function executePlayerMove(fromF, fromR, move) {
+  const piece = state.board[fromF][fromR];
+  // Handle promotion: defer to modal
+  if (move.isPromotion) {
+    state.promotionPending = { from: { file: fromF, rank: fromR }, move, piece };
+    openPromotionModal(piece.color, () => {
+      // After promotion choice, the modal callback will execute the move
+    });
+    return;
+  }
+  doExecuteMove(fromF, fromR, move, 'queen');
+}
+
+function doExecuteMove(fromF, fromR, move, promoteTo) {
+  const piece = state.board[fromF][fromR];
+  const color = piece.color;
+  // Capture the sprite of the captured piece (if any) for animation
+  let capturedSprite = null;
+  if (move.isEnPassant) {
+    const key = `${move.file},${fromR}`;
+    if (spriteMap.has(key)) capturedSprite = spriteMap.get(key);
+  } else {
+    const key = `${move.file},${move.rank}`;
+    if (spriteMap.has(key)) capturedSprite = spriteMap.get(key);
+  }
+
+  // Animation
+  const fromKey = `${fromF},${fromR}`;
+  const fromSprite = spriteMap.get(fromKey);
+  if (fromSprite) spriteMap.delete(fromKey);
+
+  const toPos = getSquareWorldPos(move.file, move.rank);
+  const toN   = getSquareNormal(move.file, move.rank);
+  const target = toPos.clone().addScaledVector(toN, HOVER_OFFSET);
+  const startPos = fromSprite ? fromSprite.position.clone() : target.clone();
+
+  // For castling, also animate the rook
+  let rookSprite = null, rookTarget = null;
+  if (move.isCastle === 'K') {
+    const k = `${7},${move.rank}`;
+    rookSprite = spriteMap.get(k);
+    if (rookSprite) {
+      spriteMap.delete(k);
+      rookTarget = getSquareWorldPos(5, move.rank).addScaledVector(getSquareNormal(5, move.rank), HOVER_OFFSET);
+    }
+  } else if (move.isCastle === 'Q') {
+    const k = `${0},${move.rank}`;
+    rookSprite = spriteMap.get(k);
+    if (rookSprite) {
+      spriteMap.delete(k);
+      rookTarget = getSquareWorldPos(3, move.rank).addScaledVector(getSquareNormal(3, move.rank), HOVER_OFFSET);
+    }
+  }
+
+  // Apply state
+  const result = applyMove(fromF, fromR, move, promoteTo);
+  // Replace piece type if promotion (note: promotion is a queen in this build by default; modal handles choice)
+  if (move.isPromotion && promoteTo) {
+    // piece type already updated by applyMove
+    // Re-sprite with new texture
+    if (fromSprite) {
+      fromSprite.material.map = pieceTextures[color][promoteTo];
+      fromSprite.material.needsUpdate = true;
+    }
+  }
+
+  // Animate move
+  if (fromSprite) {
+    animatePieceMove(fromSprite, startPos, target, move.isMoebiusWrap, () => {
+      spriteMap.set(`${move.file},${move.rank}`, fromSprite);
+      placeSpriteAt(fromSprite, move.file, move.rank);
+      // Handle captured sprite
+      if (capturedSprite) {
+        // (already removed from spriteMap by applyMove not affecting spriteMap; we removed earlier)
+        animateCaptured(capturedSprite, () => {
+          piecesGroup.remove(capturedSprite);
+          capturedSprite.material.dispose();
+        });
+      }
+      // Animate rook
+      if (rookSprite && rookTarget) {
+        animatePieceMove(rookSprite, rookSprite.position.clone(), rookTarget, false, () => {
+          spriteMap.set(`${move.isCastle === 'K' ? 5 : 3},${move.rank}`, rookSprite);
+          placeSpriteAt(rookSprite, move.isCastle === 'K' ? 5 : 3, move.rank);
+        });
+      }
+      // After move
+      onMoveComplete();
+    });
+  } else {
+    // Should not happen, but handle gracefully
+    onMoveComplete();
+  }
+}
+
+function animatePieceMove(sprite, fromPos, toPos, isMoebiusWrap, onDone) {
+  // Bézier arc
+  const mid = fromPos.clone().add(toPos).multiplyScalar(0.5);
+  const normalHint = toPos.clone().sub(fromPos).normalize();
+  // Add an offset perpendicular to motion
+  const worldUp = new THREE.Vector3(0, 1, 0);
+  const offsetDir = new THREE.Vector3().crossVectors(normalHint, worldUp);
+  if (offsetDir.lengthSq() < 0.01) offsetDir.set(1, 0, 0);
+  offsetDir.normalize();
+  mid.addScaledVector(offsetDir, 0.4);
+  mid.y += 0.3;
+
+  const curve = new THREE.QuadraticBezierCurve3(fromPos.clone(), mid, toPos.clone());
+  const duration = 0.38;
+  const obj = { t: 0 };
+  const update = () => {
+    const p = curve.getPoint(obj.t);
+    sprite.position.copy(p);
+  };
+  gsap.to(obj, {
+    t: 1, duration, ease: 'power2.inOut',
+    onUpdate: update,
+    onComplete: () => {
+      if (onDone) onDone();
+    }
+  });
+  if (isMoebiusWrap) {
+    // Camera shake
+    gsap.fromTo(camera.position, { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+      { x: camera.position.x + 0.05, y: camera.position.y + 0.05, duration: 0.1, yoyo: true, repeat: 3, ease: 'sine.inOut' });
+    // Bloom flash
+    gsap.to(bloomPass, { strength: 1.6, threshold: 0.05, duration: 0.06, yoyo: true, repeat: 1, ease: 'sine.inOut' });
+    stripUniforms.uMoebiusGlow.value = 1.0;
+    gsap.to(stripUniforms.uMoebiusGlow, { value: 0.0, duration: 1.0, ease: 'sine.out' });
+  }
+}
+
+function animateCaptured(sprite, onDone) {
+  gsap.to(sprite.position, { y: sprite.position.y + 0.6, duration: 0.3, ease: 'power2.out' });
+  gsap.to(sprite.material, { opacity: 0, duration: 0.3, onComplete: onDone });
+}
+
+function onMoveComplete() {
+  state.selected = null;
+  state.legalMoves = [];
+  refreshHighlights();
+  updateHUD();
+  if (state.checkmate || state.stalemate) {
+    setTimeout(showGameOver, 600);
+  }
+  if (state.moebiusCrossings > 0) {
+    flashMoebiusCounter();
+  }
+}
+
+/* ========================================================================
+ *  PROMOTION MODAL
+ * ====================================================================== */
+function openPromotionModal(color, onPick) {
+  const modal = document.getElementById('promo-modal');
+  const choices = document.getElementById('promo-choices');
+  choices.innerHTML = '';
+  for (const type of ['queen','rook','bishop','knight']) {
+    const btn = document.createElement('button');
+    btn.className = 'promo-btn';
+    btn.title = type;
+    const img = document.createElement('span');
+    img.className = 'cap-piece';
+    const tex = pieceTextures[color][type];
+    if (tex && tex.image) {
+      // Build a small inline data URL background
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const g = c.getContext('2d');
+      g.drawImage(tex.image, 0, 0, 64, 64);
+      img.style.backgroundImage = `url(${c.toDataURL()})`;
+    }
+    btn.appendChild(img);
+    btn.addEventListener('click', () => {
+      modal.classList.remove('show');
+      // Execute the pending move
+      if (state.promotionPending) {
+        const { from, move } = state.promotionPending;
+        state.promotionPending = null;
+        doExecuteMove(from.file, from.rank, move, type);
+      }
+    });
+    choices.appendChild(btn);
+  }
+  modal.classList.add('show');
+}
+
+/* ========================================================================
+ *  HUD UPDATES
+ * ====================================================================== */
+const elTurnLabel = document.getElementById('turn-label');
+const elTurnDot   = document.getElementById('turn-dot');
+const elMoveNo    = document.getElementById('move-no');
+const elCheck     = document.getElementById('check-pill');
+const elCapturedW = document.getElementById('captured-white');
+const elCapturedB = document.getElementById('captured-black');
+const elHistory   = document.getElementById('move-history');
+const elCrossings = document.getElementById('moebius-count-v');
+const elHudCross  = document.getElementById('hud-crossings');
+const elStatus    = document.getElementById('statusbar');
+
+function updateHUD() {
+  elTurnLabel.textContent = (state.turn === 'white' ? 'White' : 'Black') + "'s Turn";
+  elTurnDot.classList.toggle('black', state.turn === 'black');
+  elMoveNo.textContent = state.fullMoveNumber;
+  elCheck.classList.toggle('hidden', !state.inCheck);
+  elCrossings.textContent = state.moebiusCrossings;
+  elHudCross.textContent = state.moebiusCrossings;
+  // captured
+  elCapturedW.innerHTML = '';
+  for (const p of state.captured.white) {
+    elCapturedW.appendChild(makeCapPieceEl(p));
+  }
+  elCapturedB.innerHTML = '';
+  for (const p of state.captured.black) {
+    elCapturedB.appendChild(makeCapPieceEl(p));
+  }
+  // history
+  renderHistory();
+  // visual: shift status bar above header
+  elStatus.classList.add('shift-up');
+}
+
+function makeCapPieceEl(piece) {
+  const el = document.createElement('span');
+  el.className = 'cap-piece';
+  const tex = pieceTextures[piece.color][piece.type];
+  if (tex && tex.image) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 32;
+    const g = c.getContext('2d');
+    g.drawImage(tex.image, 0, 0, 32, 32);
+    el.style.backgroundImage = `url(${c.toDataURL()})`;
+  } else {
+    el.textContent = PIECE_GLYPH[piece.type] || 'P';
+  }
+  return el;
+}
+
+function renderHistory() {
+  elHistory.innerHTML = '';
+  if (state.moveHistory.length === 0) {
+    const row = document.createElement('div');
+    row.className = 'move-row';
+    row.innerHTML = '<span class="n">—</span><span class="w">—</span><span class="b">—</span>';
+    elHistory.appendChild(row);
+    return;
+  }
+  for (let i = 0; i < state.moveHistory.length; i += 2) {
+    const w = state.moveHistory[i];
+    const b = state.moveHistory[i+1];
+    const moveNum = Math.floor(i / 2) + 1;
+    const row = document.createElement('div');
+    row.className = 'move-row';
+    row.innerHTML = `
+      <span class="n">${moveNum}.</span>
+      <span class="w ${w.isMoebiusWrap ? 'moebius' : ''} ${i === state.moveHistory.length - (b?2:1) ? 'latest' : ''}">${escapeHtml(w.san)}</span>
+      <span class="b ${b && b.isMoebiusWrap ? 'moebius' : ''} ${b && i+1 === state.moveHistory.length-1 ? 'latest' : ''}">${b ? escapeHtml(b.san) : ''}</span>
+    `;
+    elHistory.appendChild(row);
+  }
+  elHistory.scrollTop = elHistory.scrollHeight;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch]));
+}
+
+function flashMoebiusCounter() {
+  const el = document.getElementById('moebius-count');
+  el.classList.remove('moebius-flash');
+  void el.offsetWidth;
+  el.classList.add('moebius-flash');
+}
+
+/* ========================================================================
+ *  GAME OVER / RULES MODALS
+ * ====================================================================== */
+function showGameOver() {
+  const modal = document.getElementById('gameover-modal');
+  const title = document.getElementById('gameover-title');
+  const sub   = document.getElementById('gameover-sub');
+  if (state.checkmate) {
+    const winner = state.turn === 'white' ? 'Black' : 'White';
+    title.textContent = 'CHECKMATE';
+    sub.textContent = '— ' + winner + ' Wins —';
+    document.getElementById('gameover-new').textContent = 'Begin Anew';
+  } else {
+    title.textContent = 'STALEMATE';
+    sub.textContent = '— The Fold Holds —';
+    document.getElementById('gameover-new').textContent = 'Begin Anew';
+  }
+  modal.classList.add('show');
+  // Particle burst
+  burstParticles();
+}
+
+function burstParticles() {
+  const start = performance.now();
+  const origOpacity = particles.mat.opacity;
+  const origSize = particles.mat.size;
+  gsap.to(particles.mat, { size: 0.06, duration: 0.5, yoyo: true, repeat: 1 });
+  gsap.to(particles.mat, { opacity: 1.2, duration: 0.5, yoyo: true, repeat: 1, onComplete: () => {
+    particles.mat.opacity = origOpacity;
+  }});
+}
+
+document.getElementById('btn-rules').addEventListener('click', () => {
+  document.getElementById('rules-modal').classList.add('show');
+});
+document.getElementById('rules-close').addEventListener('click', () => {
+  document.getElementById('rules-modal').classList.remove('show');
+});
+document.getElementById('gameover-new').addEventListener('click', () => {
+  document.getElementById('gameover-modal').classList.remove('show');
+  newGame();
+});
+document.getElementById('btn-new').addEventListener('click', newGame);
+document.getElementById('btn-flip').addEventListener('click', () => {
+  // Disable auto-rotate and animate the camera manually around the strip
+  controls.autoRotate = false;
+  lastUserInteract = performance.now() + 1500;
+  const r = camera.position.length();
+  const polar = controls.getPolarAngle();
+  const startAz = controls.getAzimuthalAngle();
+  const tgt = { a: startAz };
+  gsap.to(tgt, {
+    a: startAz + Math.PI, duration: 1.0, ease: 'power2.inOut',
+    onUpdate: () => {
+      camera.position.set(
+        r * Math.sin(polar) * Math.sin(tgt.a),
+        r * Math.cos(polar),
+        r * Math.sin(polar) * Math.cos(tgt.a)
+      );
+      camera.lookAt(controls.target);
+      controls.update();
+    },
+    onComplete: () => {
+      lastUserInteract = performance.now();
+    }
+  });
+});
+
+function newGame() {
+  state = createInitialState();
+  refreshHighlights();
+  updateHUD();
+  rebuildAllPieceSprites();
+  playSelectChime();
+  // Reset bloom and camera
+  gsap.to(bloomPass, { strength: 0.8, threshold: 0.2, duration: 0.5 });
+  // Move camera to default
+  gsap.to(camera.position, { x: 0, y: 3, z: 8, duration: 0.8, ease: 'power2.inOut' });
+}
+
+/* ========================================================================
+ *  AUDIO — simple procedural chimes
+ * ====================================================================== */
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { audioCtx = null; }
+  }
+  return audioCtx;
+}
+function beep(freq, duration, type = 'sine', vol = 0.06) {
+  const ctx = getAudio();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.value = 0;
+  osc.connect(gain); gain.connect(ctx.destination);
+  const t0 = ctx.currentTime;
+  gain.gain.linearRampToValueAtTime(vol, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+  osc.start(t0);
+  osc.stop(t0 + duration + 0.05);
+}
+function playSelectChime() { beep(880, 0.08); }
+function playMoveChime()   { beep(440, 0.10, 'triangle', 0.08); }
+function playCaptureChime(){ beep(220, 0.12, 'square', 0.05); }
+function playCheckChime()  { beep(180, 0.18, 'sawtooth', 0.05); setTimeout(() => beep(160, 0.16, 'sawtooth', 0.05), 70); }
+
+/* ========================================================================
+ *  RESIZE
+ * ====================================================================== */
+function onResize() {
+  camera.aspect = W() / H();
+  camera.updateProjectionMatrix();
+  renderer.setSize(W(), H());
+  composer.setSize(W(), H());
+  bloomPass.setSize(W(), H());
+  fxaaPass.material.uniforms['resolution'].value.set(
+    1 / (W() * renderer.getPixelRatio()),
+    1 / (H() * renderer.getPixelRatio())
+  );
+}
+window.addEventListener('resize', onResize);
+
+/* ========================================================================
+ *  MAIN LOOP
+ * ====================================================================== */
+let lastT = performance.now();
+let frame = 0;
+function tick() {
+  const now = performance.now();
+  const dt = (now - lastT) / 1000;
+  lastT = now;
+  frame++;
+
+  // auto-rotate resume
+  if (!controls.autoRotate && now - lastUserInteract > 4000) {
+    controls.autoRotate = true;
+  }
+  controls.update();
+
+  // Time uniforms
+  stripUniforms.uTime.value += dt;
+
+  // Highlight pulse animation
+  HIGHLIGHT_GROUP.children.forEach(child => {
+    if (child.userData.pulse && child.material) {
+      child.material.opacity = child.userData.baseOpacity * (0.6 + 0.4 * Math.sin(now * 0.006));
+    }
+  });
+
+  // Particle drift
+  const pos = particles.positions;
+  const phs = particles.phases;
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const ph = phs[i];
+    const wob = 0.0007;
+    pos[i*3]   += Math.sin(now * 0.0003 + ph) * wob;
+    pos[i*3+1] += Math.cos(now * 0.00025 + ph * 1.3) * wob * 0.5;
+    pos[i*3+2] += Math.sin(now * 0.0004 + ph * 0.7) * wob;
+    // wrap inside sphere radius 7
+    const x = pos[i*3], y = pos[i*3+1], z = pos[i*3+2];
+    const d = Math.sqrt(x*x + y*y + z*z);
+    if (d > 7) {
+      pos[i*3]   = x / d * 6.5;
+      pos[i*3+1] = y / d * 6.5;
+      pos[i*3+2] = z / d * 6.5;
+    }
+  }
+  particles.geom.attributes.position.needsUpdate = true;
+  // Twinkle
+  particles.mat.opacity = 0.55 + 0.25 * Math.sin(now * 0.002);
+
+  // Gentle camera bob (very subtle)
+  if (!pointerDownXY) {
+    camera.position.y += Math.sin(now * 0.0005) * 0.0008;
+  }
+
+  composer.render();
+  requestAnimationFrame(tick);
+}
+
+/* ========================================================================
+ *  BOOTSTRAP
+ * ====================================================================== */
+async function boot() {
+  await loadAllPieceTextures();
+  rebuildAllPieceSprites();
+  refreshHighlights();
+  updateHUD();
+  // Expose a debug handle (useful for inspection from the console and tests)
+  window.__chess = {
+    get state() { return state; },
+    getLegalMoves: (f, r) => getLegalMoves(f, r, state),
+    isInCheck: (c) => isInCheck(c || state.turn, state),
+    onSquareClicked,
+    newGame,
+  };
+  // Hide loader
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hide');
+    setTimeout(() => document.getElementById('loader').remove(), 700);
+  }, 250);
+  // Begin
+  requestAnimationFrame(tick);
+}
+boot().catch(err => {
+  console.error('Boot failure:', err);
+  document.getElementById('loader').innerHTML = '<div class="loader-inner"><div class="t" style="color:#ff3a1a;">FOLD COLLAPSED</div><div style="color:#888;font-size:11px;margin-top:8px;">' + String(err.message || err) + '</div></div>';
+});
+</script>
+</body>
+</html>
