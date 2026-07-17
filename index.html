@@ -643,8 +643,8 @@ const R  = 3.0;     // major radius of Möbius strip
 const HW = 0.9;     // half-width
 const SEGU = 256;   // segments along u
 const SEGT = 64;    // segments along t
-const PIECE_SCALE = 0.42;
-const HOVER_OFFSET = 0.08; // pieces hover above the surface
+const PIECE_SCALE = 0.32;  // ~1.4x square size — prominent but not overlapping
+const HOVER_OFFSET = 0.09; // pieces hover above the surface
 
 // ---- Colour palette ------------------------------------------------------
 const C_DEEP    = new THREE.Color('#0d0424');
@@ -657,10 +657,28 @@ const C_EMBER   = new THREE.Color('#ff3a1a');
 const C_TEXT    = new THREE.Color('#e8deff');
 
 /* ---------- Möbius math ---------- */
+// X-offset to center the strip's bounding box at the origin.
+// The standard Möbius parametrization has x ∈ [-(R+HW), R+HW] but with
+// t variation the actual range is asymmetric. We compute it once at startup.
+const X_BBOX_OFFSET = (() => {
+  let xMin = Infinity, xMax = -Infinity;
+  for (let i = 0; i <= SEGU; i++) {
+    const u = (i / SEGU) * Math.PI * 2;
+    for (let j = 0; j <= SEGT; j++) {
+      const t = -HW + (j / SEGT) * (HW * 2);
+      const cu2 = Math.cos(u * 0.5);
+      const x = (R + t * cu2) * Math.cos(u);
+      if (x < xMin) xMin = x;
+      if (x > xMax) xMax = x;
+    }
+  }
+  return (xMin + xMax) / 2;
+})();
+
 function mobiusPoint(u, t, out) {
   const cu2 = Math.cos(u * 0.5), su2 = Math.sin(u * 0.5);
   const r   = R + t * cu2;
-  out.x = r * Math.cos(u);
+  out.x = r * Math.cos(u) - X_BBOX_OFFSET;
   out.y = r * Math.sin(u);
   out.z = t * su2;
   return out;
@@ -1196,7 +1214,7 @@ const H = () => stageEl.clientHeight;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, W()/H(), 0.1, 100);
-camera.position.set(0, 4.2, 5.8);
+camera.position.set(0, 3.8, 6.2);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -2544,6 +2562,18 @@ function tick() {
   // Twinkle
   particles.mat.opacity = 0.55 + 0.25 * Math.sin(now * 0.002);
 
+  // Sort piece sprites by distance to camera (back-to-front) for correct depth
+  // Since depthTest is disabled, this is essential for proper layering
+  const spriteList = Array.from(spriteMap.values());
+  if (spriteList.length > 0) {
+    const camPos = camera.position;
+    for (const s of spriteList) {
+      s.userData.camDist = s.position.distanceTo(camPos);
+    }
+    spriteList.sort((a, b) => b.userData.camDist - a.userData.camDist);
+    spriteList.forEach((s, i) => { s.renderOrder = 10 + i; });
+  }
+
   // Gentle camera bob (very subtle)
   if (!pointerDownXY) {
     camera.position.y += Math.sin(now * 0.0005) * 0.0008;
@@ -2571,7 +2601,7 @@ async function boot() {
     get camera() { return camera; },
     get controls() { return controls; },
     resetCamera: () => {
-      camera.position.set(0, 4.2, 5.8);
+      camera.position.set(0, 3.8, 6.2);
       controls.target.set(0, 0, 0);
       controls.update();
     },
