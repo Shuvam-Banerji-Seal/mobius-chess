@@ -1235,10 +1235,10 @@ controls.maxDistance = 14;
 controls.maxPolarAngle = Math.PI * 0.78; // prevent looking from below
 controls.minPolarAngle = Math.PI * 0.08; // prevent looking straight up
 controls.autoRotate = true;
-controls.autoRotateSpeed = 0.15; // very slow
+controls.autoRotateSpeed = 0.1; // very slow, almost imperceptible
 controls.target.set(0, 0, 0);
 
-let lastUserInteract = performance.now() + 4000; // wait 4s before autoRotate engages
+let lastUserInteract = performance.now() + 15000; // wait 15s before autoRotate engages
 controls.autoRotate = false; // start paused, enable after delay
 controls.addEventListener('start', () => { controls.autoRotate = false; lastUserInteract = performance.now(); });
 controls.addEventListener('end',   () => { lastUserInteract = performance.now(); });
@@ -2606,8 +2606,8 @@ async function boot() {
       controls.update();
     },
   };
-  // Engage auto-rotate after initial 5s grace period
-  setTimeout(() => { lastUserInteract = performance.now(); }, 5000);
+  // Engage auto-rotate after initial 15s grace period
+  // (lastUserInteract is set to now+15000 at startup, so auto-rotate won't engage until 15s passes)
   // Hide loader
   setTimeout(() => {
     document.getElementById('loader').classList.add('hide');
